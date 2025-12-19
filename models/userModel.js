@@ -14,7 +14,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, "email is required"],
-    unique: true,
     trim: true,
     validate: {
       validator: validator.isEmail,
@@ -43,6 +42,8 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
 });
+
+userSchema.index({ email: 1 }, { unique: true });
 
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;

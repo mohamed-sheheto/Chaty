@@ -12,7 +12,7 @@ const createSendToken = function (user, statusCode, res) {
 
   user.password = undefined;
 
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "90d",
   });
 
@@ -93,11 +93,90 @@ exports.login = async function (req, res, next) {
       });
     }
 
+    user.lastSeen = new Date();
+    await user.save({ validateBeforeSave: false });
+
     createSendToken(user, 200, res);
   } catch (err) {
     console.error("Login error:", err);
     next(err);
   }
+};
+
+exports.logout = async function (req, res, next) {
+  try {
+    res.clearCookie("jwt", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+    res.set("Clear-Site-Data", '"cookies"');
+    res.status(200).json({ status: "success" });
+  } catch (err) {
+    console.error("logout error", err);
+    next(err);
+  }
+};
+
+exports.protect = async function (req, res, next) {
+  try {
+    let token;
+
+    if (req.cookies && req.cookies.jwt) token = req.cookies.jwt;
+    else if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token) {
+      return res
+        .status(401)
+        .json({ status: "fail", message: "please login first" });
+    }
+
+    const decoded = await jwt.verify(token, process.env.JWT_SECRET);
+
+    let loggedUser = await User.findById(decoded.id);
+
+    if (!loggedUser) {
+      loggedUser = await Google.findById(decoded.id);
+    }
+
+    if (!loggedUser) {
+      return res
+        .status(401)
+        .json({ status: "fail", message: "User doesn't exists" });
+    }
+
+    req.user = loggedUser;
+    next();
+  } catch (err) {
+    console.log("protect error", err);
+    return res
+      .status(401)
+      .json({ status: "fail", message: "Invalid or expired token" });
+  }
+};
+
+exports.home = (req, res, next) => {
+  const userData = {
+    id: req.user._id,
+    username: req.user.username,
+  };
+
+  if (req.user.email) {
+    userData.email = req.user.email;
+  }
+  if (req.user.avatar) {
+    userData.avatar = req.user.avatar;
+  }
+
+  res.status(200).json({
+    status: "success",
+    user: userData,
+  });
 };
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -137,21 +216,32 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   );
 }
 
-exports.googleCallback = function (req, res, next) {
+exports.googleCallback = async function (req, res, next) {
   try {
     if (!req.user) {
-      return res.status(401).json({
-        status: "error",
-        message: "Google authentication failed",
-      });
+      return res.redirect("/?error=Google authentication failed");
     }
 
-    createSendToken(req.user, 200, res);
+    if (!process.env.JWT_SECRET) {
+      return res.redirect("/?error=Server configuration error");
+    }
+
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "90d",
+    });
+
+    const cookieExpiresIn = Number(process.env.JWT_COOKIE_EXPIRES_IN) || 90;
+
+    res.cookie("jwt", token, {
+      expires: new Date(Date.now() + cookieExpiresIn * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    res.redirect("/?auth=success");
   } catch (err) {
     console.error("Google callback error:", err);
-    res.status(500).json({
-      status: "error",
-      message: "An error occurred during authentication",
-    });
+    res.redirect("/?error=An error occurred during authentication");
   }
 };

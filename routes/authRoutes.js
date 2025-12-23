@@ -4,19 +4,21 @@ const passport = require("passport");
 
 const router = express.Router();
 
-router.post("/signUp", authController.signUp);
+router.post("/signup", authController.signUp);
 router.post("/login", authController.login);
+router.post("/logout", authController.logout);
 
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  router.get("/google", passport.authenticate("google"));
-  router.get(
-    "/google/redirect",
-    passport.authenticate("google", {
-      session: false,
-      failureRedirect: false,
-    }),
-    authController.googleCallback
-  );
-}
+router.get("/google", passport.authenticate("google"));
+router.get(
+  "/google/redirect",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: false,
+  }),
+  authController.googleCallback
+);
+
+router.use(authController.protect);
+router.get("/", authController.home);
 
 module.exports = router;

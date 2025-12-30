@@ -67,6 +67,8 @@ exports.getRooms = async function (req, res, next) {
   }
 };
 
+exports.getRoom = async function (req, res, next) {};
+
 // getRooms - Get list of public rooms (or user's rooms if authenticated)
 // getRoom - Get single room details with members
 // joinRoom - Add user to room members

@@ -3,9 +3,12 @@ const path = require("path");
 const morgan = require("morgan");
 const passport = require("passport");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+
 const authRouter = require("./routes/authRoutes");
 const roomRoutes = require("./routes/roomRoutes");
-const cookieParser = require("cookie-parser");
+const AppError = require("./utils/appError");
+const errorHandler = require("./controllers/errorController");
 
 const app = express();
 
@@ -24,19 +27,9 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/rooms", roomRoutes);
 
 app.use((req, res, next) => {
-  const err = new Error(`cannot find ${req.originalUrl} on this server`);
-  err.statusCode = 404;
-
-  next(err);
+  next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
 
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-
-  res.status(statusCode).json({
-    status: "error",
-    message: err.message || "Something went wrong",
-  });
-});
+app.use(errorHandler);
 
 module.exports = app;

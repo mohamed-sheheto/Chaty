@@ -1,5 +1,6 @@
 const Room = require("../models/roomModel");
 const asyncWrapper = require("../utils/asyncWrapper");
+const AppError = require("../utils/appError");
 
 exports.createRoom = asyncWrapper(async function (req, res, next) {
   const { name, description, isPrivate } = req.body;
@@ -61,7 +62,7 @@ exports.getRoom = asyncWrapper(async function (req, res, next) {
   const room = await Room.findById(req.params.id);
 
   if (!room) {
-    return next("invalid id, Room not found", 404);
+    return next(new AppError("invalid id, Room not found", 404));
   }
 
   if (room.isPrivate) {
@@ -70,7 +71,9 @@ exports.getRoom = asyncWrapper(async function (req, res, next) {
     );
 
     if (!isMember) {
-      return next("You do not have access to this private room", 403);
+      return next(
+        new AppError("You do not have access to this private room", 403)
+      );
     }
   }
 
@@ -83,11 +86,11 @@ exports.getRoom = asyncWrapper(async function (req, res, next) {
 exports.deleteRoom = asyncWrapper(async function (req, res, next) {
   const room = await Room.findById(req.params.id);
   if (!room) {
-    return next("invalid id, Room not found", 404);
+    return next(new AppError("invalid id, Room not found", 404));
   }
 
   if (!room.creator._id.equals(req.user._id)) {
-    return next("You can't delete this room", 403);
+    return next(new AppError("You can't delete this room", 403));
   }
 
   await Room.deleteOne({ _id: room._id });
@@ -98,7 +101,7 @@ exports.joinRoom = asyncWrapper(async function (req, res, next) {
   const roomToJoin = await Room.findById(req.params.id);
 
   if (!roomToJoin) {
-    return next("Room not found", 404);
+    return next(new AppError("Room not found", 404));
   }
 
   if (roomToJoin.isPrivate) {
@@ -115,7 +118,7 @@ exports.joinRoom = asyncWrapper(async function (req, res, next) {
   );
 
   if (!room) {
-    return next("Room not found during update.", 404);
+    return next(new AppError("Room not found during update.", 404));
   }
 
   res.status(200).json({
@@ -128,7 +131,7 @@ exports.joinRoom = asyncWrapper(async function (req, res, next) {
 exports.leaveRoom = asyncWrapper(async function (req, res, next) {
   const roomToLeave = await Room.findById(req.params.id);
   if (!roomToLeave) {
-    return next("Room not found", 404);
+    return next(new AppError("Room not found", 404));
   }
 
   if (roomToLeave.creator._id.equals(req.user._id)) {

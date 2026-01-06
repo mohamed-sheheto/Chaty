@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const Google = require("../models/googleModel");
 const asyncWrapper = require("../utils/asyncWrapper");
+const AppError = require("../utils/appError");
 const jwt = require("jsonwebtoken");
 const passport = require("passport");
 const validator = require("validator");

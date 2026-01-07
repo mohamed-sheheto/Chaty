@@ -12,7 +12,7 @@ const errorHandler = require("./controllers/errorController");
 
 const app = express();
 
-if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
+if (process.env.NODE_ENV === "dev") app.use(morgan("dev"));
 
 app.use(cors());
 app.use(express.static(path.join(__dirname, "public")));

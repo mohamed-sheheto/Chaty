@@ -36,18 +36,17 @@ const roomSchema = new mongoose.Schema({
 roomSchema.index({ creator: 1 });
 roomSchema.index({ isPrivate: 1 });
 roomSchema.index({ members: 1 });
-roomSchema.index({ name: 1, creator: 1 });
+roomSchema.index({ name: 1, creator: 1 }, { unique: true });
 
-roomSchema.pre("save", function (next) {
+roomSchema.pre("save", function () {
   if (this.isNew && this.creator) {
     if (!this.members.includes(this.creator)) {
       this.members.push(this.creator);
     }
   }
-  next();
 });
 
-roomSchema.pre(/^find/, function (next) {
+roomSchema.pre(/^find/, function () {
   this.populate({
     path: "creator",
     select: "username avatar",
@@ -56,7 +55,6 @@ roomSchema.pre(/^find/, function (next) {
     path: "members",
     select: "username avatar",
   });
-  next();
 });
 
 module.exports = mongoose.model("Room", roomSchema);

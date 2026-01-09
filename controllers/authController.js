@@ -120,7 +120,11 @@ exports.protect = asyncWrapper(async function (req, res, next) {
     return next(new AppError("User doesn't exists", 401));
   }
 
-  loggedUser.changedPasswordAfter(decoded.iat);
+  if (loggedUser.changedPasswordAfter(decoded.iat)) {
+    return next(
+      new AppError("User recently changed password! Please log in again.", 401)
+    );
+  }
 
   req.user = loggedUser;
   next();

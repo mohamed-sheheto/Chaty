@@ -5,6 +5,7 @@ const roomController = require("../controllers/roomController");
 const router = express.Router();
 
 router.use(authController.protect);
+
 router.route("/").get(roomController.getRooms).post(roomController.createRoom);
 router
   .route("/:id")

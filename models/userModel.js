@@ -41,6 +41,10 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
   },
+
+  passwordChangedAt: {
+    type: Date,
+  },
 });
 
 userSchema.index({ email: 1 }, { unique: true });
@@ -50,10 +54,25 @@ userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
   this.password = await bcrypt.hash(this.password, 12);
+
+  this.passwordChangedAt = Date.now() - 1000;
 });
 
 userSchema.methods.checkPassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+userSchema.methods.changedPasswordAfter = function (JWTTimeStamp) {
+  if (this.passwordChangedAt) {
+    const changedTimeStamp = parseInt(
+      this.passwordChangedAt.getTime() / 1000,
+      10
+    );
+    console.log(JWTTimeStamp, changedTimeStamp);
+    return JWTTimeStamp < changedTimeStamp;
+  }
+
+  return false;
 };
 
 module.exports = mongoose.model("User", userSchema);

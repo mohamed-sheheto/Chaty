@@ -3,6 +3,7 @@ const Google = require("../models/googleModel");
 const asyncWrapper = require("../utils/asyncWrapper");
 const AppError = require("../utils/appError");
 const jwt = require("jsonwebtoken");
+const { promisify } = require("util");
 const passport = require("passport");
 const validator = require("validator");
 const googleStrategy = require("passport-google-oauth20").Strategy;
@@ -80,9 +81,6 @@ exports.login = asyncWrapper(async function (req, res, next) {
     return next(new AppError("invalid email and password", 401));
   }
 
-  user.lastSeen = new Date();
-  await user.save({ validateBeforeSave: false });
-
   createSendToken(user, 200, res);
 });
 
@@ -99,19 +97,18 @@ exports.logout = asyncWrapper(async function (req, res, next) {
 exports.protect = asyncWrapper(async function (req, res, next) {
   let token;
 
-  if (req.cookies && req.cookies.jwt) token = req.cookies.jwt;
-  else if (
+  if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer")
   ) {
     token = req.headers.authorization.split(" ")[1];
-  }
+  } else if (req.cookies && req.cookies.jwt) token = req.cookies.jwt;
 
   if (!token) {
     return next(new AppError("please login first", 401));
   }
 
-  const decoded = await jwt.verify(token, process.env.JWT_SECRET);
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   let loggedUser = await User.findById(decoded.id);
 
@@ -122,6 +119,8 @@ exports.protect = asyncWrapper(async function (req, res, next) {
   if (!loggedUser) {
     return next(new AppError("User doesn't exists", 401));
   }
+
+  loggedUser.changedPasswordAfter(decoded.iat);
 
   req.user = loggedUser;
   next();
